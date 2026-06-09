@@ -114,6 +114,7 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
     <button class="nav-btn" onclick="showPage('offers')">Offers</button>
     <button class="nav-btn" onclick="showPage('redemptions')">Redemptions</button>
     <button class="nav-btn" onclick="showPage('winvoucher')">Win Voucher</button>
+    <button class="nav-btn" onclick="showPage('offerredemptions')">Offer Usage</button>
     <button class="nav-btn" onclick="showPage('staff')">Staff</button>
   </div>
 
@@ -233,6 +234,34 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
           <table>
             <thead><tr><th>Member</th><th>Stage</th><th>Site</th><th>Date</th><th>Status</th></tr></thead>
             <tbody id="winVouchersTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OFFER REDEMPTIONS -->
+  <div id="page-offerredemptions" class="page">
+    <div class="main">
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+        <div><label>From</label><input type="date" id="offerFilterFrom" style="width:160px"></div>
+        <div><label>To</label><input type="date" id="offerFilterTo" style="width:160px"></div>
+        <div><label>Offer</label>
+          <select id="offerFilterType" style="width:200px">
+            <option value="">All offers</option>
+            <option value="bogof">Buy One Get One £5</option>
+            <option value="30off">30% Off Food</option>
+          </select>
+        </div>
+        <div style="margin-top:18px"><button class="btn btn-primary" onclick="loadOfferRedemptions()">Filter</button></div>
+        <div style="margin-top:18px;margin-left:auto"><button class="btn btn-outline" onclick="exportOfferRedemptions()">Export CSV</button></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:24px" id="offerSummaryGrid"></div>
+      <div class="card">
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table>
+            <thead><tr><th>Member</th><th>Offer</th><th>Site</th><th>Staff</th><th>Date</th></tr></thead>
+            <tbody id="offerRedemptionsTable"></tbody>
           </table>
         </div>
       </div>
@@ -365,6 +394,7 @@ function showPage(page) {
   else if (page === 'offers') loadOffers();
   else if (page === 'redemptions') loadRedemptions();
   else if (page === 'winvoucher') loadWinVouchers();
+  else if (page === 'offerredemptions') loadOfferRedemptions();
   else if (page === 'staff') loadStaff();
 }
 
@@ -590,6 +620,54 @@ async function generateWinQR() {
     <button class="btn btn-outline" style="margin-top:16px;width:100%" onclick="window.print()">Print QR</button>
   `;
   QRCode.toCanvas(document.getElementById('winQRCanvas'), qrData, { width: 200, color: { dark: '#0F3654', light: '#FAF7F0' } });
+}
+
+
+// OFFER REDEMPTIONS
+let allOfferRedemptions = [];
+
+async function loadOfferRedemptions() {
+  let query = db.from('offer_redemptions')
+    .select('*,members(first_name,last_name,email)')
+    .order('redeemed_at', { ascending: false })
+    .limit(500);
+
+  const from = document.getElementById('offerFilterFrom')?.value;
+  const to = document.getElementById('offerFilterTo')?.value;
+  const type = document.getElementById('offerFilterType')?.value;
+  if (from) query = query.gte('redeemed_at', from);
+  if (to) query = query.lte('redeemed_at', to + 'T23:59:59');
+  if (type) query = query.eq('offer_id', type);
+
+  const { data } = await query;
+  allOfferRedemptions = data || [];
+
+  // Summary cards
+  const bogofCount = allOfferRedemptions.filter(r => r.offer_id === 'bogof').length;
+  const offCount = allOfferRedemptions.filter(r => r.offer_id === '30off').length;
+  document.getElementById('offerSummaryGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${bogofCount}</div><div class="stat-label">Buy One Get One £5</div></div>
+    <div class="stat-card"><div class="stat-val">${offCount}</div><div class="stat-label">30% Off Food</div></div>
+  `;
+
+  document.getElementById('offerRedemptionsTable').innerHTML = allOfferRedemptions.map(r => `
+    <tr>
+      <td>${r.members?.first_name||''} ${r.members?.last_name||''}<div style="font-size:11px;color:var(--mute)">${r.members?.email||''}</div></td>
+      <td><span class="badge badge-gold">${r.offer_label}</span></td>
+      <td>${r.site||'—'}</td>
+      <td style="color:var(--mute)">${r.staff_name||'—'}</td>
+      <td style="color:var(--mute)">${new Date(r.redeemed_at).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">No offer redemptions in this period</td></tr>';
+}
+
+function exportOfferRedemptions() {
+  const rows = [['First Name','Last Name','Email','Offer','Site','Staff','Date']];
+  allOfferRedemptions.forEach(r => rows.push([
+    r.members?.first_name||'', r.members?.last_name||'', r.members?.email||'',
+    r.offer_label, r.site||'', r.staff_name||'',
+    new Date(r.redeemed_at).toLocaleDateString('en-GB')
+  ]));
+  downloadCSV(rows, 'byron-offer-redemptions.csv');
 }
 
 // STAFF
