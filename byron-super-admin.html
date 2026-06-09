@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Byron Club — Super Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#0F3654;--cream:#E1D8C3;--paper:#FAF7F0;--mute:#6B6B66;--live:#E73C2A;--green:#1A7A4A;--gold:#C9963A;--border:#E1D8C3}
+html,body{height:100%;background:#f0ede6;font-family:'Inter',sans-serif;color:var(--ink)}
+.header{background:var(--ink);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.header-logo{font-family:'League Spartan',sans-serif;font-size:18px;font-weight:800;color:var(--cream);text-transform:uppercase;letter-spacing:-0.01em}
+.header-badge{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:rgba(225,216,195,0.45);background:rgba(225,216,195,0.08);padding:4px 10px;border-radius:2px}
+.sign-out{background:none;border:1px solid rgba(225,216,195,0.2);color:rgba(225,216,195,0.5);font-size:11px;padding:5px 12px;cursor:pointer;border-radius:2px;font-family:'Inter',sans-serif}
+.sign-out:hover{border-color:rgba(225,216,195,0.5);color:var(--cream)}
+.nav{background:#fff;border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 24px;gap:0}
+.nav-btn{font-family:'League Spartan',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--mute);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;padding:14px 20px;white-space:nowrap;margin-bottom:-1px}
+.nav-btn.active{color:var(--ink);border-bottom-color:var(--ink)}
+.main{max-width:1100px;margin:0 auto;padding:32px 24px}
+.page{display:none}.page.active{display:block}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.stat-card{background:#fff;border:1px solid var(--border);padding:20px}
+.stat-val{font-family:'League Spartan',sans-serif;font-size:40px;font-weight:900;color:var(--ink);line-height:1}
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--mute);margin-top:6px}
+.stat-sub{font-size:12px;color:var(--mute);margin-top:4px}
+.card{background:#fff;border:1px solid var(--border);margin-bottom:24px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-family:'League Spartan',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink)}
+.card-body{padding:20px}
+.btn{font-family:'League Spartan',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:10px 18px;border:none;cursor:pointer;border-radius:2px;transition:all 0.15s}
+.btn-primary{background:var(--ink);color:var(--cream)}
+.btn-primary:hover{background:#1a4a6e}
+.btn-danger{background:var(--live);color:#fff}
+.btn-danger:hover{background:#c43020}
+.btn-gold{background:var(--gold);color:#fff}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn-outline{background:transparent;color:var(--ink);border:1.5px solid var(--border)}
+.btn-outline:hover{border-color:var(--ink)}
+.btn-green{background:var(--green);color:#fff}
+table{width:100%;border-collapse:collapse}
+th{font-family:'League Spartan',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--mute);padding:10px 14px;text-align:left;border-bottom:2px solid var(--border);background:#faf9f7}
+td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--ink)}
+tr:hover td{background:#faf9f7}
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
+.badge-green{background:rgba(26,122,74,0.1);color:var(--green)}
+.badge-gold{background:rgba(201,150,58,0.1);color:var(--gold)}
+.badge-mute{background:rgba(107,107,102,0.1);color:var(--mute)}
+.badge-live{background:rgba(231,60,42,0.1);color:var(--live)}
+input[type=text],input[type=email],input[type=password],textarea,select{font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);background:var(--paper);border:1.5px solid var(--border);border-radius:3px;padding:10px 14px;outline:none;width:100%;transition:border-color 0.15s}
+input:focus,textarea:focus,select:focus{border-color:var(--ink)}
+label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--mute);display:block;margin-bottom:6px}
+.form-group{margin-bottom:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.search-bar{display:flex;gap:10px;margin-bottom:20px}
+.search-bar input{flex:1}
+.toggle{position:relative;display:inline-flex;align-items:center;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{width:40px;height:22px;background:var(--border);border-radius:11px;transition:background 0.2s}
+.toggle input:checked+.toggle-track{background:var(--green)}
+.toggle-thumb{position:absolute;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left 0.2s;top:3px}
+.toggle input:checked~.toggle-thumb{left:21px}
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--ink)}
+.login-box{background:var(--paper);padding:40px 36px;width:100%;max-width:360px;border-radius:4px}
+.login-logo{font-family:'League Spartan',sans-serif;font-size:52px;font-weight:900;text-transform:uppercase;letter-spacing:-0.03em;color:var(--ink);line-height:1}
+.login-sub{font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:var(--mute);margin-bottom:28px;margin-top:4px}
+.login-error{font-size:13px;color:var(--live);text-align:center;margin-top:10px;min-height:16px}
+.empty{text-align:center;padding:48px 20px;color:var(--mute);font-size:14px}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,54,84,0.6);display:flex;align-items:center;justify-content:center;z-index:100;padding:24px}
+.modal{background:var(--paper);border-radius:4px;padding:32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
+.modal-title{font-family:'League Spartan',sans-serif;font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:-0.02em;color:var(--ink);margin-bottom:20px}
+.modal-actions{display:flex;gap:10px;margin-top:24px;justify-content:flex-end}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--cream);padding:12px 20px;border-radius:4px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity 0.25s;pointer-events:none}
+.toast.show{opacity:1}.toast.success{background:var(--green)}.toast.error{background:var(--live)}
+.site-stat{padding:16px;border:1px solid var(--border);display:flex;flex-direction:column;gap:4px}
+.site-stat-name{font-family:'League Spartan',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink)}
+.site-stat-val{font-family:'League Spartan',sans-serif;font-size:28px;font-weight:900;color:var(--ink)}
+.site-stat-label{font-size:11px;color:var(--mute)}
+.qr-block{background:var(--ink);padding:32px;text-align:center;border-radius:4px}
+.qr-block canvas{border-radius:4px}
+@media(max-width:768px){.grid-4{grid-template-columns:repeat(2,1fr)}.grid-2{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-screen">
+    <div class="login-box">
+      <div class="login-logo">Byron</div>
+      <div class="login-sub">Super Admin</div>
+      <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="akshat@niyamocapital.com" autocomplete="email"></div>
+      <div class="form-group"><label>PIN</label><input type="password" id="loginPin" placeholder="••••" maxlength="6" inputmode="numeric"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="handleLogin()" id="loginBtn">Sign In</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+</div>
+
+<div id="appScreen" style="display:none;flex-direction:column;min-height:100vh;">
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="header-logo">Byron Club</div>
+      <div class="header-badge">Super Admin</div>
+    </div>
+    <button class="sign-out" onclick="handleLogout()">Sign out</button>
+  </div>
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-btn" onclick="showPage('members')">Members</button>
+    <button class="nav-btn" onclick="showPage('offers')">Offers</button>
+    <button class="nav-btn" onclick="showPage('redemptions')">Redemptions</button>
+    <button class="nav-btn" onclick="showPage('winvoucher')">Win Voucher</button>
+    <button class="nav-btn" onclick="showPage('staff')">Staff</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="main">
+      <div class="grid-4" id="statsGrid">
+        <div class="stat-card"><div class="stat-val" id="stat-members">—</div><div class="stat-label">Total Members</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-stamps">—</div><div class="stat-label">Stamps Issued</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-redemptions">—</div><div class="stat-label">Rewards Redeemed</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-winvouchers">—</div><div class="stat-label">Win Vouchers</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Redemptions by Site</span></div>
+          <div class="card-body" id="siteStats"><div class="empty">Loading…</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Recent Sign-ups</span></div>
+          <div class="card-body" style="padding:0">
+            <table><thead><tr><th>Name</th><th>Joined</th><th>Stamps</th></tr></thead>
+            <tbody id="recentMembers"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMBERS -->
+  <div id="page-members" class="page">
+    <div class="main">
+      <div class="search-bar">
+        <input type="text" id="memberSearch" placeholder="Search by name or email…" oninput="filterMembers()">
+        <button class="btn btn-outline" onclick="exportMembers()">Export CSV</button>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Stamps</th><th>Lifetime</th><th>Tier</th><th>Team</th><th>Joined</th><th></th></tr></thead>
+            <tbody id="membersTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OFFERS -->
+  <div id="page-offers" class="page">
+    <div class="main">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+        <button class="btn btn-primary" onclick="openOfferModal(null)">+ New Offer</button>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table>
+            <thead><tr><th>Title</th><th>Tag</th><th>Valid From</th><th>Valid Until</th><th>Active</th><th>Order</th><th></th></tr></thead>
+            <tbody id="offersTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REDEMPTIONS -->
+  <div id="page-redemptions" class="page">
+    <div class="main">
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+        <div><label>From</label><input type="date" id="filterFrom" style="width:160px"></div>
+        <div><label>To</label><input type="date" id="filterTo" style="width:160px"></div>
+        <div style="margin-top:18px"><button class="btn btn-primary" onclick="loadRedemptions()">Filter</button></div>
+        <div style="margin-top:18px;margin-left:auto"><button class="btn btn-outline" onclick="exportRedemptions()">Export CSV</button></div>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table>
+            <thead><tr><th>Member</th><th>Reward</th><th>Site</th><th>Date</th></tr></thead>
+            <tbody id="redemptionsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIN VOUCHER -->
+  <div id="page-winvoucher" class="page">
+    <div class="main">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Issue Win Voucher QR</span></div>
+          <div class="card-body">
+            <p style="font-size:14px;color:var(--mute);margin-bottom:20px;line-height:1.6">Generate a QR code for a specific match stage. Display this on screens or print it in-restaurant. Members scan it to claim their free burger — staff verify at least 1 stamp before redeeming.</p>
+            <div class="form-group">
+              <label>Match Stage</label>
+              <select id="winStage">
+                <option value="qf_win">Quarter-Final Win</option>
+                <option value="sf_win">Semi-Final Win</option>
+                <option value="final_win">Final Win</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Winning Team</label>
+              <input type="text" id="winTeam" placeholder="e.g. England">
+            </div>
+            <button class="btn btn-gold" style="width:100%" onclick="generateWinQR()">Generate QR Code</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Generated QR</span></div>
+          <div class="card-body" id="winQROutput">
+            <div class="empty">Generate a QR code on the left to display it here.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Win Voucher Redemptions</span></div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table>
+            <thead><tr><th>Member</th><th>Stage</th><th>Site</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody id="winVouchersTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAFF -->
+  <div id="page-staff" class="page">
+    <div class="main">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+        <button class="btn btn-primary" onclick="openStaffModal(null)">+ Add Staff</button>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Site</th><th>PIN</th><th></th></tr></thead>
+            <tbody id="staffTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="offerModal" style="display:none" onclick="closeModal('offerModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="offerModalTitle">New Offer</div>
+    <input type="hidden" id="offerModalId">
+    <div class="form-group"><label>Title</label><input type="text" id="offerTitle"></div>
+    <div class="form-group"><label>Description</label><textarea id="offerDescription" rows="3"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Tag (e.g. LIMITED)</label><input type="text" id="offerTag"></div>
+      <div class="form-group"><label>Sort Order</label><input type="text" id="offerOrder" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Valid From</label><input type="date" id="offerFrom"></div>
+      <div class="form-group"><label>Valid Until</label><input type="date" id="offerUntil"></div>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:12px">
+      <label style="margin:0">Active</label>
+      <label class="toggle"><input type="checkbox" id="offerActive" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('offerModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOffer()">Save Offer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="staffModal" style="display:none" onclick="closeModal('staffModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="staffModalTitle">Add Staff</div>
+    <input type="hidden" id="staffModalId">
+    <div class="form-row">
+      <div class="form-group"><label>Name</label><input type="text" id="staffName"></div>
+      <div class="form-group"><label>Site</label><input type="text" id="staffSite"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Email</label><input type="email" id="staffEmail"></div>
+      <div class="form-group"><label>PIN</label><input type="text" id="staffPin" maxlength="6"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('staffModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="memberModal" style="display:none" onclick="closeModal('memberModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="memberModalName"></div>
+    <div id="memberModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('memberModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vxnkussblrqsqqqcobuf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ4bmt1c3NibHJxc3FxcWNvYnVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NjM0NDQsImV4cCI6MjA5NjIzOTQ0NH0.W5IHNPODCjCt-CVxpdvyQCApsoGJyUG5wLFYHAWIERM';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentAdmin = null;
+let allMembers = [];
+let allRedemptions = [];
+
+const saved = sessionStorage.getItem('byronSuperAdmin');
+if (saved) { currentAdmin = JSON.parse(saved); showApp(); }
+
+// AUTH
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pin = document.getElementById('loginPin').value.trim();
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+  if (!email || !pin) { err.textContent = 'Enter email and PIN'; return; }
+  btn.textContent = 'Signing in…'; btn.disabled = true; err.textContent = '';
+  const { data, error } = await db.from('super_admins').select('*').eq('email', email).eq('pin', pin).single();
+  btn.textContent = 'Sign In'; btn.disabled = false;
+  if (error || !data) { err.textContent = 'Incorrect email or PIN.'; return; }
+  currentAdmin = data;
+  sessionStorage.setItem('byronSuperAdmin', JSON.stringify(data));
+  showApp();
+}
+
+function handleLogout() {
+  sessionStorage.removeItem('byronSuperAdmin');
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'flex';
+  loadDashboard();
+}
+
+// NAV
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.target.classList.add('active');
+  if (page === 'dashboard') loadDashboard();
+  else if (page === 'members') loadMembers();
+  else if (page === 'offers') loadOffers();
+  else if (page === 'redemptions') loadRedemptions();
+  else if (page === 'winvoucher') loadWinVouchers();
+  else if (page === 'staff') loadStaff();
+}
+
+// DASHBOARD
+async function loadDashboard() {
+  const [membersRes, stampsRes, redemptionsRes, winRes] = await Promise.all([
+    db.from('members').select('id', { count: 'exact', head: true }),
+    db.from('visits').select('stamps_earned'),
+    db.from('redemptions').select('id', { count: 'exact', head: true }),
+    db.from('wc_rewards').select('id', { count: 'exact', head: true }).eq('reward_type', 'win_voucher'),
+  ]);
+
+  document.getElementById('stat-members').textContent = membersRes.count ?? '—';
+  const totalStamps = (stampsRes.data || []).reduce((s, v) => s + (v.stamps_earned || 0), 0);
+  document.getElementById('stat-stamps').textContent = totalStamps;
+  document.getElementById('stat-redemptions').textContent = redemptionsRes.count ?? '—';
+  document.getElementById('stat-winvouchers').textContent = winRes.count ?? '—';
+
+  // Site redemptions
+  const { data: siteData } = await db.from('redemptions').select('redeemed_site');
+  const sites = {};
+  (siteData || []).forEach(r => {
+    const s = r.redeemed_site || 'Unknown';
+    sites[s] = (sites[s] || 0) + 1;
+  });
+  const siteHtml = Object.keys(sites).length === 0
+    ? '<div class="empty">No redemptions yet</div>'
+    : Object.entries(sites).map(([site, count]) => `
+        <div class="site-stat" style="margin-bottom:12px">
+          <div class="site-stat-name">${site}</div>
+          <div class="site-stat-val">${count}</div>
+          <div class="site-stat-label">redemption${count !== 1 ? 's' : ''}</div>
+        </div>`).join('');
+  document.getElementById('siteStats').innerHTML = siteHtml;
+
+  // Recent members
+  const { data: recent } = await db.from('members').select('first_name,last_name,joined_at,current_stamps').order('joined_at', { ascending: false }).limit(8);
+  document.getElementById('recentMembers').innerHTML = (recent || []).map(m => `
+    <tr>
+      <td>${m.first_name} ${m.last_name || ''}</td>
+      <td>${new Date(m.joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</td>
+      <td>${m.current_stamps}</td>
+    </tr>`).join('') || '<tr><td colspan="3" class="empty">No members yet</td></tr>';
+}
+
+// MEMBERS
+async function loadMembers() {
+  const { data } = await db.from('members').select('*').order('joined_at', { ascending: false });
+  allMembers = data || [];
+  renderMembersTable(allMembers);
+}
+
+function renderMembersTable(members) {
+  document.getElementById('membersTable').innerHTML = members.map(m => `
+    <tr>
+      <td>${m.first_name} ${m.last_name || ''}</td>
+      <td style="color:var(--mute)">${m.email || '—'}</td>
+      <td><strong>${m.current_stamps}</strong>/9</td>
+      <td>${m.lifetime_stamps}</td>
+      <td><span class="badge badge-${m.tier === 'DEVOTED' ? 'gold' : m.tier === 'LOYAL' ? 'green' : 'mute'}">${m.tier}</span></td>
+      <td>${m.supporting_team || '—'}</td>
+      <td style="color:var(--mute)">${new Date(m.joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="viewMember('${m.id}')">View</button></td>
+    </tr>`).join('') || '<tr><td colspan="8" class="empty">No members</td></tr>';
+}
+
+function filterMembers() {
+  const q = document.getElementById('memberSearch').value.toLowerCase();
+  renderMembersTable(allMembers.filter(m =>
+    (m.first_name + ' ' + (m.last_name || '')).toLowerCase().includes(q) ||
+    (m.email || '').toLowerCase().includes(q)
+  ));
+}
+
+async function viewMember(id) {
+  const m = allMembers.find(x => x.id === id);
+  if (!m) return;
+  const { data: visits } = await db.from('visits').select('*').eq('member_id', id).order('visited_at', { ascending: false }).limit(10);
+  const { data: rewards } = await db.from('wc_rewards').select('*').eq('member_id', id).order('created_at', { ascending: false });
+
+  document.getElementById('memberModalName').textContent = `${m.first_name} ${m.last_name || ''}`;
+  document.getElementById('memberModalBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div><div style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Email</div><div style="font-size:14px">${m.email || '—'}</div></div>
+      <div><div style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Stamps</div><div style="font-size:14px"><strong>${m.current_stamps}</strong>/9 (${m.lifetime_stamps} lifetime)</div></div>
+      <div><div style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Tier</div><div style="font-size:14px">${m.tier}</div></div>
+      <div><div style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Supporting</div><div style="font-size:14px">${m.supporting_team || '—'}</div></div>
+      <div><div style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">DOB</div><div style="font-size:14px">${m.date_of_birth ? new Date(m.date_of_birth).toLocaleDateString('en-GB') : '—'}</div></div>
+      <div><div style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px">Joined</div><div style="font-size:14px">${new Date(m.joined_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div>
+    </div>
+    ${(rewards || []).length > 0 ? `
+    <div style="font-family:'League Spartan',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--mute);margin-bottom:8px">Rewards</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+      ${rewards.map(r => `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#fff;border:1px solid var(--border);font-size:13px">
+        <span>${r.reward_type} — ${r.trigger}</span>
+        <span class="badge badge-${r.redeemed ? 'mute' : 'green'}">${r.redeemed ? 'Redeemed' : 'Active'}</span>
+      </div>`).join('')}
+    </div>` : ''}
+    ${(visits || []).length > 0 ? `
+    <div style="font-family:'League Spartan',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--mute);margin-bottom:8px">Recent Visits</div>
+    <table><thead><tr><th>Site</th><th>Date</th><th>Stamps</th></tr></thead><tbody>
+      ${visits.map(v => `<tr><td>${v.restaurant_name}</td><td>${new Date(v.visited_at).toLocaleDateString('en-GB')}</td><td>+${v.stamps_earned}</td></tr>`).join('')}
+    </tbody></table>` : '<div style="color:var(--mute);font-size:13px">No visits recorded yet.</div>'}
+  `;
+  document.getElementById('memberModal').style.display = 'flex';
+}
+
+function exportMembers() {
+  const rows = [['First Name','Last Name','Email','Stamps','Lifetime Stamps','Tier','Supporting Team','Joined']];
+  allMembers.forEach(m => rows.push([m.first_name, m.last_name||'', m.email||'', m.current_stamps, m.lifetime_stamps, m.tier, m.supporting_team||'', new Date(m.joined_at).toLocaleDateString('en-GB')]));
+  downloadCSV(rows, 'byron-club-members.csv');
+}
+
+// OFFERS
+async function loadOffers() {
+  const { data } = await db.from('offers').select('*').order('sort_order');
+  document.getElementById('offersTable').innerHTML = (data || []).map(o => `
+    <tr>
+      <td><strong>${o.title}</strong><div style="font-size:12px;color:var(--mute);margin-top:2px">${(o.description||'').slice(0,60)}…</div></td>
+      <td>${o.tag ? `<span class="badge badge-gold">${o.tag}</span>` : '—'}</td>
+      <td style="color:var(--mute)">${o.valid_from ? new Date(o.valid_from).toLocaleDateString('en-GB') : '—'}</td>
+      <td style="color:var(--mute)">${o.valid_until ? new Date(o.valid_until).toLocaleDateString('en-GB') : '—'}</td>
+      <td><span class="badge badge-${o.is_active ? 'green' : 'mute'}">${o.is_active ? 'Live' : 'Off'}</span></td>
+      <td>${o.sort_order}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" onclick="openOfferModal(${JSON.stringify(o).replace(/"/g,'&quot;')})">Edit</button>
+        <button class="btn btn-sm" style="background:${o.is_active ? 'rgba(231,60,42,0.1)' : 'rgba(26,122,74,0.1)' };color:${o.is_active ? 'var(--live)' : 'var(--green)'}" onclick="toggleOffer('${o.id}',${!o.is_active})">${o.is_active ? 'Pause' : 'Go Live'}</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">No offers</td></tr>';
+}
+
+function openOfferModal(offer) {
+  document.getElementById('offerModalTitle').textContent = offer ? 'Edit Offer' : 'New Offer';
+  document.getElementById('offerModalId').value = offer?.id || '';
+  document.getElementById('offerTitle').value = offer?.title || '';
+  document.getElementById('offerDescription').value = offer?.description || '';
+  document.getElementById('offerTag').value = offer?.tag || '';
+  document.getElementById('offerOrder').value = offer?.sort_order ?? 0;
+  document.getElementById('offerFrom').value = offer?.valid_from ? offer.valid_from.split('T')[0] : '';
+  document.getElementById('offerUntil').value = offer?.valid_until ? offer.valid_until.split('T')[0] : '';
+  document.getElementById('offerActive').checked = offer?.is_active ?? true;
+  document.getElementById('offerModal').style.display = 'flex';
+}
+
+async function saveOffer() {
+  const id = document.getElementById('offerModalId').value;
+  const payload = {
+    title: document.getElementById('offerTitle').value,
+    description: document.getElementById('offerDescription').value,
+    tag: document.getElementById('offerTag').value || null,
+    sort_order: parseInt(document.getElementById('offerOrder').value) || 0,
+    valid_from: document.getElementById('offerFrom').value || null,
+    valid_until: document.getElementById('offerUntil').value || null,
+    is_active: document.getElementById('offerActive').checked,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = id
+    ? await db.from('offers').update(payload).eq('id', id)
+    : await db.from('offers').insert(payload);
+  if (error) { showToast('Failed to save offer', 'error'); return; }
+  closeModal('offerModal');
+  loadOffers();
+  showToast('Offer saved', 'success');
+}
+
+async function toggleOffer(id, active) {
+  await db.from('offers').update({ is_active: active }).eq('id', id);
+  loadOffers();
+  showToast(active ? 'Offer is now live' : 'Offer paused', 'success');
+}
+
+// REDEMPTIONS
+async function loadRedemptions() {
+  let query = db.from('redemptions').select('*,members(first_name,last_name,email)').order('redeemed_at', { ascending: false }).limit(200);
+  const from = document.getElementById('filterFrom')?.value;
+  const to = document.getElementById('filterTo')?.value;
+  if (from) query = query.gte('redeemed_at', from);
+  if (to) query = query.lte('redeemed_at', to + 'T23:59:59');
+  const { data } = await query;
+  allRedemptions = data || [];
+  document.getElementById('redemptionsTable').innerHTML = allRedemptions.map(r => `
+    <tr>
+      <td>${r.members?.first_name || ''} ${r.members?.last_name || ''}<div style="font-size:11px;color:var(--mute)">${r.members?.email || ''}</div></td>
+      <td><span class="badge badge-${r.reward_id === 'birthday_burger' ? 'gold' : 'green'}">${r.reward_id}</span></td>
+      <td>${r.redeemed_site || '—'}</td>
+      <td style="color:var(--mute)">${new Date(r.redeemed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+    </tr>`).join('') || '<tr><td colspan="4" class="empty">No redemptions in this period</td></tr>';
+}
+
+function exportRedemptions() {
+  const rows = [['First Name','Last Name','Email','Reward','Site','Date']];
+  allRedemptions.forEach(r => rows.push([r.members?.first_name||'', r.members?.last_name||'', r.members?.email||'', r.reward_id, r.redeemed_site||'', new Date(r.redeemed_at).toLocaleDateString('en-GB')]));
+  downloadCSV(rows, 'byron-club-redemptions.csv');
+}
+
+// WIN VOUCHER
+async function loadWinVouchers() {
+  const { data } = await db.from('wc_rewards').select('*,members(first_name,last_name,email)').eq('reward_type','win_voucher').order('created_at', { ascending: false });
+  document.getElementById('winVouchersTable').innerHTML = (data || []).map(r => `
+    <tr>
+      <td>${r.members?.first_name||''} ${r.members?.last_name||''}<div style="font-size:11px;color:var(--mute)">${r.members?.email||''}</div></td>
+      <td>${{ qf_win: 'Quarter-Final', sf_win: 'Semi-Final', final_win: 'Final' }[r.trigger] || r.trigger}</td>
+      <td>${r.redeemed_site || '—'}</td>
+      <td style="color:var(--mute)">${new Date(r.created_at).toLocaleDateString('en-GB')}</td>
+      <td><span class="badge badge-${r.redeemed ? 'mute' : 'green'}">${r.redeemed ? 'Redeemed' : 'Active'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">No win vouchers issued yet</td></tr>';
+}
+
+async function generateWinQR() {
+  const stage = document.getElementById('winStage').value;
+  const team = document.getElementById('winTeam').value.trim() || 'Winner';
+  const stageLabels = { qf_win: 'Quarter-Final', sf_win: 'Semi-Final', final_win: 'Final' };
+  const qrData = `byron:win:${stage}:${team}`;
+  const output = document.getElementById('winQROutput');
+  output.innerHTML = `
+    <div class="qr-block">
+      <div style="font-family:'League Spartan',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(225,216,195,0.5);margin-bottom:8px">Win Voucher</div>
+      <div style="font-family:'League Spartan',sans-serif;font-size:22px;font-weight:800;color:var(--cream);text-transform:uppercase;letter-spacing:-0.02em;margin-bottom:4px">${team}</div>
+      <div style="font-family:'League Spartan',sans-serif;font-size:13px;font-weight:700;color:rgba(201,150,58,0.8);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px">${stageLabels[stage]} Win — Free Burger</div>
+      <canvas id="winQRCanvas" style="border-radius:4px"></canvas>
+      <div style="font-size:11px;color:rgba(225,216,195,0.4);margin-top:16px;line-height:1.5">Staff scan in the admin panel to redeem.<br>Must have at least 1 stamp to qualify.</div>
+    </div>
+    <button class="btn btn-outline" style="margin-top:16px;width:100%" onclick="window.print()">Print QR</button>
+  `;
+  QRCode.toCanvas(document.getElementById('winQRCanvas'), qrData, { width: 200, color: { dark: '#0F3654', light: '#FAF7F0' } });
+}
+
+// STAFF
+async function loadStaff() {
+  const { data } = await db.from('staff').select('*').order('site');
+  document.getElementById('staffTable').innerHTML = (data || []).map(s => `
+    <tr>
+      <td>${s.name}</td>
+      <td style="color:var(--mute)">${s.email}</td>
+      <td>${s.site}</td>
+      <td><code style="background:var(--border);padding:2px 8px;border-radius:2px;font-size:13px">${s.pin}</code></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-outline btn-sm" onclick="openStaffModal(${JSON.stringify(s).replace(/"/g,'&quot;')})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStaff('${s.id}','${s.name}')">Delete</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="5" class="empty">No staff</td></tr>';
+}
+
+function openStaffModal(staff) {
+  document.getElementById('staffModalTitle').textContent = staff ? 'Edit Staff' : 'Add Staff';
+  document.getElementById('staffModalId').value = staff?.id || '';
+  document.getElementById('staffName').value = staff?.name || '';
+  document.getElementById('staffSite').value = staff?.site || '';
+  document.getElementById('staffEmail').value = staff?.email || '';
+  document.getElementById('staffPin').value = staff?.pin || '';
+  document.getElementById('staffModal').style.display = 'flex';
+}
+
+async function saveStaff() {
+  const id = document.getElementById('staffModalId').value;
+  const payload = {
+    name: document.getElementById('staffName').value,
+    site: document.getElementById('staffSite').value,
+    email: document.getElementById('staffEmail').value,
+    pin: document.getElementById('staffPin').value,
+  };
+  const { error } = id
+    ? await db.from('staff').update(payload).eq('id', id)
+    : await db.from('staff').insert(payload);
+  if (error) { showToast('Failed to save staff', 'error'); return; }
+  closeModal('staffModal');
+  loadStaff();
+  showToast('Staff saved', 'success');
+}
+
+async function deleteStaff(id, name) {
+  if (!confirm(`Delete ${name}?`)) return;
+  await db.from('staff').delete().eq('id', id);
+  loadStaff();
+  showToast('Staff removed', 'success');
+}
+
+// UTILS
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast show ${type}`;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = filename; a.click();
+}
+
+document.getElementById('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+</script>
+</body>
+</html>
