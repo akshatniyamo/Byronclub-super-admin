@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@400;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -111,9 +113,8 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
   <div class="nav">
     <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
     <button class="nav-btn" onclick="showPage('members')">Members</button>
-    <button class="nav-btn" onclick="showPage('offers')">Offers</button>
     <button class="nav-btn" onclick="showPage('redemptions')">Redemptions</button>
-    <button class="nav-btn" onclick="showPage('winvoucher')">Win Voucher</button>
+    <button class="nav-btn" onclick="showPage('analytics')">Analytics</button>
     <button class="nav-btn" onclick="showPage('offerredemptions')">Offer Usage</button>
     <button class="nav-btn" onclick="showPage('staff')">Staff</button>
   </div>
@@ -146,8 +147,22 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
   <!-- MEMBERS -->
   <div id="page-members" class="page">
     <div class="main">
-      <div class="search-bar">
-        <input type="text" id="memberSearch" placeholder="Search by name or email…" oninput="filterMembers()">
+      <div class="search-bar" style="flex-wrap:wrap;gap:10px">
+        <input type="text" id="memberSearch" placeholder="Search by name or email…" oninput="filterMembers()" style="flex:1;min-width:200px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin:0">From</label>
+          <input type="date" id="memberDateFrom" onchange="filterMembers()" style="width:140px">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:0.08em;margin:0">To</label>
+          <input type="date" id="memberDateTo" onchange="filterMembers()" style="width:140px">
+        </div>
+        <select id="memberSort" onchange="filterMembers()" style="width:160px;font-family:'Inter',sans-serif;font-size:13px;padding:9px 12px;border:1.5px solid var(--border);border-radius:3px;background:var(--paper);color:var(--ink)">
+          <option value="joined_desc">Newest first</option>
+          <option value="joined_asc">Oldest first</option>
+          <option value="stamps_desc">Most stamps</option>
+          <option value="stamps_asc">Fewest stamps</option>
+        </select>
         <button class="btn btn-outline" onclick="exportMembers()">Export CSV</button>
       </div>
       <div class="card">
@@ -155,23 +170,6 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
           <table>
             <thead><tr><th>Name</th><th>Email</th><th>Stamps</th><th>Lifetime</th><th>Tier</th><th>Team</th><th>Joined</th><th></th></tr></thead>
             <tbody id="membersTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- OFFERS -->
-  <div id="page-offers" class="page">
-    <div class="main">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
-        <button class="btn btn-primary" onclick="openOfferModal(null)">+ New Offer</button>
-      </div>
-      <div class="card">
-        <div class="card-body" style="padding:0;overflow-x:auto">
-          <table>
-            <thead><tr><th>Title</th><th>Tag</th><th>Valid From</th><th>Valid Until</th><th>Active</th><th>Order</th><th></th></tr></thead>
-            <tbody id="offersTable"></tbody>
           </table>
         </div>
       </div>
@@ -192,76 +190,6 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
           <table>
             <thead><tr><th>Member</th><th>Reward</th><th>Site</th><th>Date</th></tr></thead>
             <tbody id="redemptionsTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- WIN VOUCHER -->
-  <div id="page-winvoucher" class="page">
-    <div class="main">
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><span class="card-title">Issue Win Voucher QR</span></div>
-          <div class="card-body">
-            <p style="font-size:14px;color:var(--mute);margin-bottom:20px;line-height:1.6">Generate a QR code for a specific match stage. Display this on screens or print it in-restaurant. Members scan it to claim their free burger — staff verify at least 1 stamp before redeeming.</p>
-            <div class="form-group">
-              <label>Match Stage</label>
-              <select id="winStage">
-                <option value="qf_win">Quarter-Final Win</option>
-                <option value="sf_win">Semi-Final Win</option>
-                <option value="final_win">Final Win</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Winning Team</label>
-              <input type="text" id="winTeam" placeholder="e.g. England">
-            </div>
-            <button class="btn btn-gold" style="width:100%" onclick="generateWinQR()">Generate QR Code</button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">Generated QR</span></div>
-          <div class="card-body" id="winQROutput">
-            <div class="empty">Generate a QR code on the left to display it here.</div>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Win Voucher Redemptions</span></div>
-        <div class="card-body" style="padding:0;overflow-x:auto">
-          <table>
-            <thead><tr><th>Member</th><th>Stage</th><th>Site</th><th>Date</th><th>Status</th></tr></thead>
-            <tbody id="winVouchersTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- OFFER REDEMPTIONS -->
-  <div id="page-offerredemptions" class="page">
-    <div class="main">
-      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-        <div><label>From</label><input type="date" id="offerFilterFrom" style="width:160px"></div>
-        <div><label>To</label><input type="date" id="offerFilterTo" style="width:160px"></div>
-        <div><label>Offer</label>
-          <select id="offerFilterType" style="width:200px">
-            <option value="">All offers</option>
-            <option value="bogof">Buy One Get One £5</option>
-            <option value="30off">30% Off Food</option>
-          </select>
-        </div>
-        <div style="margin-top:18px"><button class="btn btn-primary" onclick="loadOfferRedemptions()">Filter</button></div>
-        <div style="margin-top:18px;margin-left:auto"><button class="btn btn-outline" onclick="exportOfferRedemptions()">Export CSV</button></div>
-      </div>
-      <div class="grid-2" style="margin-bottom:24px" id="offerSummaryGrid"></div>
-      <div class="card">
-        <div class="card-body" style="padding:0;overflow-x:auto">
-          <table>
-            <thead><tr><th>Member</th><th>Offer</th><th>Site</th><th>Staff</th><th>Date</th></tr></thead>
-            <tbody id="offerRedemptionsTable"></tbody>
           </table>
         </div>
       </div>
@@ -391,9 +319,8 @@ function showPage(page) {
   event.target.classList.add('active');
   if (page === 'dashboard') loadDashboard();
   else if (page === 'members') loadMembers();
-  else if (page === 'offers') loadOffers();
   else if (page === 'redemptions') loadRedemptions();
-  else if (page === 'winvoucher') loadWinVouchers();
+  else if (page === 'analytics') loadAnalytics();
   else if (page === 'offerredemptions') loadOfferRedemptions();
   else if (page === 'staff') loadStaff();
 }
@@ -463,10 +390,26 @@ function renderMembersTable(members) {
 
 function filterMembers() {
   const q = document.getElementById('memberSearch').value.toLowerCase();
-  renderMembersTable(allMembers.filter(m =>
-    (m.first_name + ' ' + (m.last_name || '')).toLowerCase().includes(q) ||
-    (m.email || '').toLowerCase().includes(q)
-  ));
+  const from = document.getElementById('memberDateFrom').value;
+  const to = document.getElementById('memberDateTo').value;
+  const sort = document.getElementById('memberSort').value;
+
+  let filtered = allMembers.filter(m => {
+    const nameMatch = (m.first_name + ' ' + (m.last_name || '')).toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q);
+    const joined = m.joined_at ? m.joined_at.split('T')[0] : '';
+    const fromMatch = !from || joined >= from;
+    const toMatch = !to || joined <= to;
+    return nameMatch && fromMatch && toMatch;
+  });
+
+  filtered.sort((a, b) => {
+    if (sort === 'stamps_desc') return (b.current_stamps || 0) - (a.current_stamps || 0);
+    if (sort === 'stamps_asc') return (a.current_stamps || 0) - (b.current_stamps || 0);
+    if (sort === 'joined_asc') return new Date(a.joined_at) - new Date(b.joined_at);
+    return new Date(b.joined_at) - new Date(a.joined_at); // joined_desc default
+  });
+
+  renderMembersTable(filtered);
 }
 
 async function viewMember(id) {
@@ -508,65 +451,6 @@ function exportMembers() {
   downloadCSV(rows, 'byron-club-members.csv');
 }
 
-// OFFERS
-async function loadOffers() {
-  const { data } = await db.from('offers').select('*').order('sort_order');
-  document.getElementById('offersTable').innerHTML = (data || []).map(o => `
-    <tr>
-      <td><strong>${o.title}</strong><div style="font-size:12px;color:var(--mute);margin-top:2px">${(o.description||'').slice(0,60)}…</div></td>
-      <td>${o.tag ? `<span class="badge badge-gold">${o.tag}</span>` : '—'}</td>
-      <td style="color:var(--mute)">${o.valid_from ? new Date(o.valid_from).toLocaleDateString('en-GB') : '—'}</td>
-      <td style="color:var(--mute)">${o.valid_until ? new Date(o.valid_until).toLocaleDateString('en-GB') : '—'}</td>
-      <td><span class="badge badge-${o.is_active ? 'green' : 'mute'}">${o.is_active ? 'Live' : 'Off'}</span></td>
-      <td>${o.sort_order}</td>
-      <td style="display:flex;gap:6px">
-        <button class="btn btn-outline btn-sm" onclick="openOfferModal(${JSON.stringify(o).replace(/"/g,'&quot;')})">Edit</button>
-        <button class="btn btn-sm" style="background:${o.is_active ? 'rgba(231,60,42,0.1)' : 'rgba(26,122,74,0.1)' };color:${o.is_active ? 'var(--live)' : 'var(--green)'}" onclick="toggleOffer('${o.id}',${!o.is_active})">${o.is_active ? 'Pause' : 'Go Live'}</button>
-      </td>
-    </tr>`).join('') || '<tr><td colspan="7" class="empty">No offers</td></tr>';
-}
-
-function openOfferModal(offer) {
-  document.getElementById('offerModalTitle').textContent = offer ? 'Edit Offer' : 'New Offer';
-  document.getElementById('offerModalId').value = offer?.id || '';
-  document.getElementById('offerTitle').value = offer?.title || '';
-  document.getElementById('offerDescription').value = offer?.description || '';
-  document.getElementById('offerTag').value = offer?.tag || '';
-  document.getElementById('offerOrder').value = offer?.sort_order ?? 0;
-  document.getElementById('offerFrom').value = offer?.valid_from ? offer.valid_from.split('T')[0] : '';
-  document.getElementById('offerUntil').value = offer?.valid_until ? offer.valid_until.split('T')[0] : '';
-  document.getElementById('offerActive').checked = offer?.is_active ?? true;
-  document.getElementById('offerModal').style.display = 'flex';
-}
-
-async function saveOffer() {
-  const id = document.getElementById('offerModalId').value;
-  const payload = {
-    title: document.getElementById('offerTitle').value,
-    description: document.getElementById('offerDescription').value,
-    tag: document.getElementById('offerTag').value || null,
-    sort_order: parseInt(document.getElementById('offerOrder').value) || 0,
-    valid_from: document.getElementById('offerFrom').value || null,
-    valid_until: document.getElementById('offerUntil').value || null,
-    is_active: document.getElementById('offerActive').checked,
-    updated_at: new Date().toISOString(),
-  };
-  const { error } = id
-    ? await db.from('offers').update(payload).eq('id', id)
-    : await db.from('offers').insert(payload);
-  if (error) { showToast('Failed to save offer', 'error'); return; }
-  closeModal('offerModal');
-  loadOffers();
-  showToast('Offer saved', 'success');
-}
-
-async function toggleOffer(id, active) {
-  await db.from('offers').update({ is_active: active }).eq('id', id);
-  loadOffers();
-  showToast(active ? 'Offer is now live' : 'Offer paused', 'success');
-}
-
-// REDEMPTIONS
 async function loadRedemptions() {
   let query = db.from('redemptions').select('*,members(first_name,last_name,email)').order('redeemed_at', { ascending: false }).limit(200);
   const from = document.getElementById('filterFrom')?.value;
@@ -588,86 +472,6 @@ function exportRedemptions() {
   const rows = [['First Name','Last Name','Email','Reward','Site','Date']];
   allRedemptions.forEach(r => rows.push([r.members?.first_name||'', r.members?.last_name||'', r.members?.email||'', r.reward_id, r.redeemed_site||'', new Date(r.redeemed_at).toLocaleDateString('en-GB')]));
   downloadCSV(rows, 'byron-club-redemptions.csv');
-}
-
-// WIN VOUCHER
-async function loadWinVouchers() {
-  const { data } = await db.from('wc_rewards').select('*,members(first_name,last_name,email)').eq('reward_type','win_voucher').order('created_at', { ascending: false });
-  document.getElementById('winVouchersTable').innerHTML = (data || []).map(r => `
-    <tr>
-      <td>${r.members?.first_name||''} ${r.members?.last_name||''}<div style="font-size:11px;color:var(--mute)">${r.members?.email||''}</div></td>
-      <td>${{ qf_win: 'Quarter-Final', sf_win: 'Semi-Final', final_win: 'Final' }[r.trigger] || r.trigger}</td>
-      <td>${r.redeemed_site || '—'}</td>
-      <td style="color:var(--mute)">${new Date(r.created_at).toLocaleDateString('en-GB')}</td>
-      <td><span class="badge badge-${r.redeemed ? 'mute' : 'green'}">${r.redeemed ? 'Redeemed' : 'Active'}</span></td>
-    </tr>`).join('') || '<tr><td colspan="5" class="empty">No win vouchers issued yet</td></tr>';
-}
-
-async function generateWinQR() {
-  const stage = document.getElementById('winStage').value;
-  const team = document.getElementById('winTeam').value.trim() || 'Winner';
-  const stageLabels = { qf_win: 'Quarter-Final', sf_win: 'Semi-Final', final_win: 'Final' };
-  const qrData = `byron:win:${stage}:${team}`;
-  const output = document.getElementById('winQROutput');
-  output.innerHTML = `
-    <div class="qr-block">
-      <div style="font-family:'League Spartan',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:rgba(225,216,195,0.5);margin-bottom:8px">Win Voucher</div>
-      <div style="font-family:'League Spartan',sans-serif;font-size:22px;font-weight:800;color:var(--cream);text-transform:uppercase;letter-spacing:-0.02em;margin-bottom:4px">${team}</div>
-      <div style="font-family:'League Spartan',sans-serif;font-size:13px;font-weight:700;color:rgba(201,150,58,0.8);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px">${stageLabels[stage]} Win — Free Burger</div>
-      <canvas id="winQRCanvas" style="border-radius:4px"></canvas>
-      <div style="font-size:11px;color:rgba(225,216,195,0.4);margin-top:16px;line-height:1.5">Staff scan in the admin panel to redeem.<br>Must have at least 1 stamp to qualify.</div>
-    </div>
-    <button class="btn btn-outline" style="margin-top:16px;width:100%" onclick="window.print()">Print QR</button>
-  `;
-  QRCode.toCanvas(document.getElementById('winQRCanvas'), qrData, { width: 200, color: { dark: '#0F3654', light: '#FAF7F0' } });
-}
-
-
-// OFFER REDEMPTIONS
-let allOfferRedemptions = [];
-
-async function loadOfferRedemptions() {
-  let query = db.from('offer_redemptions')
-    .select('*,members(first_name,last_name,email)')
-    .order('redeemed_at', { ascending: false })
-    .limit(500);
-
-  const from = document.getElementById('offerFilterFrom')?.value;
-  const to = document.getElementById('offerFilterTo')?.value;
-  const type = document.getElementById('offerFilterType')?.value;
-  if (from) query = query.gte('redeemed_at', from);
-  if (to) query = query.lte('redeemed_at', to + 'T23:59:59');
-  if (type) query = query.eq('offer_id', type);
-
-  const { data } = await query;
-  allOfferRedemptions = data || [];
-
-  // Summary cards
-  const bogofCount = allOfferRedemptions.filter(r => r.offer_id === 'bogof').length;
-  const offCount = allOfferRedemptions.filter(r => r.offer_id === '30off').length;
-  document.getElementById('offerSummaryGrid').innerHTML = `
-    <div class="stat-card"><div class="stat-val">${bogofCount}</div><div class="stat-label">Buy One Get One £5</div></div>
-    <div class="stat-card"><div class="stat-val">${offCount}</div><div class="stat-label">30% Off Food</div></div>
-  `;
-
-  document.getElementById('offerRedemptionsTable').innerHTML = allOfferRedemptions.map(r => `
-    <tr>
-      <td>${r.members?.first_name||''} ${r.members?.last_name||''}<div style="font-size:11px;color:var(--mute)">${r.members?.email||''}</div></td>
-      <td><span class="badge badge-gold">${r.offer_label}</span></td>
-      <td>${r.site||'—'}</td>
-      <td style="color:var(--mute)">${r.staff_name||'—'}</td>
-      <td style="color:var(--mute)">${new Date(r.redeemed_at).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
-    </tr>`).join('') || '<tr><td colspan="5" class="empty">No offer redemptions in this period</td></tr>';
-}
-
-function exportOfferRedemptions() {
-  const rows = [['First Name','Last Name','Email','Offer','Site','Staff','Date']];
-  allOfferRedemptions.forEach(r => rows.push([
-    r.members?.first_name||'', r.members?.last_name||'', r.members?.email||'',
-    r.offer_label, r.site||'', r.staff_name||'',
-    new Date(r.redeemed_at).toLocaleDateString('en-GB')
-  ]));
-  downloadCSV(rows, 'byron-offer-redemptions.csv');
 }
 
 // STAFF
@@ -734,6 +538,184 @@ function downloadCSV(rows, filename) {
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = filename; a.click();
+}
+
+
+// ANALYTICS
+let signupChartInstance = null;
+let teamChartInstance = null;
+let stampChartInstance = null;
+
+async function loadAnalytics() {
+  await Promise.all([renderSignupChart(), renderTeamChart(), renderStampChart()]);
+}
+
+async function renderSignupChart() {
+  const period = document.getElementById('signupPeriod')?.value || 'week';
+  const { data: members } = await db.from('members').select('joined_at').order('joined_at');
+  if (!members?.length) return;
+
+  const counts = {};
+  members.forEach(m => {
+    const d = new Date(m.joined_at);
+    let key;
+    if (period === 'day') key = d.toISOString().split('T')[0];
+    else if (period === 'week') {
+      const monday = new Date(d); monday.setDate(d.getDate() - d.getDay() + 1);
+      key = monday.toISOString().split('T')[0];
+    } else {
+      key = d.toISOString().slice(0, 7);
+    }
+    counts[key] = (counts[key] || 0) + 1;
+  });
+
+  const labels = Object.keys(counts).sort();
+  const values = labels.map(k => counts[k]);
+
+  const ctx = document.getElementById('signupChart').getContext('2d');
+  if (signupChartInstance) signupChartInstance.destroy();
+  signupChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Sign-ups', data: values, backgroundColor: '#0F3654', borderRadius: 3 }]
+    },
+    options: {
+      responsive: true, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 11 } } } }
+    }
+  });
+}
+
+async function renderTeamChart() {
+  const { data: members } = await db.from('members').select('supporting_team').not('supporting_team', 'is', null);
+  if (!members?.length) {
+    document.getElementById('teamChart').parentElement.innerHTML = '<p style="color:var(--mute);font-size:14px;text-align:center">No supporting team data yet.</p>';
+    return;
+  }
+
+  const counts = {};
+  members.forEach(m => {
+    const t = (m.supporting_team || 'Not set').trim();
+    counts[t] = (counts[t] || 0) + 1;
+  });
+
+  // Sort by count, show top 8, group rest as "Other"
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, 8);
+  const otherCount = sorted.slice(8).reduce((s, [,v]) => s + v, 0);
+  if (otherCount > 0) top.push(['Other', otherCount]);
+
+  const colours = ['#0F3654','#C9963A','#1A7A4A','#E73C2A','#4A90D9','#8B5CF6','#F59E0B','#10B981','#6B7280'];
+
+  const ctx = document.getElementById('teamChart').getContext('2d');
+  if (teamChartInstance) teamChartInstance.destroy();
+  teamChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: top.map(([k]) => k),
+      datasets: [{ data: top.map(([,v]) => v), backgroundColor: colours, borderWidth: 2, borderColor: '#FAF7F0' }]
+    },
+    options: {
+      responsive: true, cutout: '55%',
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } }
+    }
+  });
+}
+
+async function renderStampChart() {
+  const { data: members } = await db.from('members').select('current_stamps');
+  if (!members?.length) return;
+
+  const buckets = { '0': 0, '1-2': 0, '3-5': 0, '6-8': 0, '9': 0 };
+  members.forEach(m => {
+    const s = m.current_stamps || 0;
+    if (s === 0) buckets['0']++;
+    else if (s <= 2) buckets['1-2']++;
+    else if (s <= 5) buckets['3-5']++;
+    else if (s <= 8) buckets['6-8']++;
+    else buckets['9']++;
+  });
+
+  const ctx = document.getElementById('stampChart').getContext('2d');
+  if (stampChartInstance) stampChartInstance.destroy();
+  stampChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(buckets),
+      datasets: [{ label: 'Members', data: Object.values(buckets), backgroundColor: ['#6B7280','#4A90D9','#C9963A','#1A7A4A','#0F3654'], borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+}
+
+// SevenRooms CSV matching
+async function processSevenRoomsCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const body = document.getElementById('matchScoreBody');
+  body.innerHTML = '<p style="color:var(--mute);font-size:14px">Processing...</p>';
+
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: async (results) => {
+      const rows = results.data;
+      // Extract emails and phones from CSV (try common column names)
+      const srEmails = new Set();
+      const srPhones = new Set();
+      rows.forEach(row => {
+        const email = row.Email || row.email || row['Email Address'] || row['email_address'] || '';
+        const phone = row.Phone || row.phone || row['Phone Number'] || row['phone_number'] || '';
+        if (email.trim()) srEmails.add(email.trim().toLowerCase());
+        if (phone.trim()) srPhones.add(phone.trim().replace(/\s/g, ''));
+      });
+
+      // Get all Byron Club members
+      const { data: members } = await db.from('members').select('email, phone');
+      const total = members?.length || 0;
+      let matched = 0;
+      const matchedEmails = [];
+
+      (members || []).forEach(m => {
+        const emailMatch = m.email && srEmails.has(m.email.toLowerCase());
+        const phoneMatch = m.phone && srPhones.has(m.phone.replace(/\s/g, ''));
+        if (emailMatch || phoneMatch) {
+          matched++;
+          if (m.email) matchedEmails.push(m.email);
+        }
+      });
+
+      const newMembers = total - matched;
+      const matchPct = total > 0 ? Math.round((matched / total) * 100) : 0;
+      const newPct = 100 - matchPct;
+
+      body.innerHTML = \`
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">
+          <div class="stat-card"><div class="stat-val">\${total}</div><div class="stat-label">Byron Club Members</div></div>
+          <div class="stat-card" style="border-color:var(--green)"><div class="stat-val" style="color:var(--green)">\${matched}</div><div class="stat-label">Existing SevenRooms Guests</div><div class="stat-sub">\${matchPct}% of members</div></div>
+          <div class="stat-card" style="border-color:var(--gold)"><div class="stat-val" style="color:var(--gold)">\${newMembers}</div><div class="stat-label">New to Byron digitally</div><div class="stat-sub">\${newPct}% of members</div></div>
+        </div>
+        <div style="max-width:280px;margin:0 auto"><canvas id="matchChart" height="280"></canvas></div>
+        <p style="color:var(--mute);font-size:12px;margin-top:16px;text-align:center">SevenRooms export had \${srEmails.size.toLocaleString()} email records. Matched by email and phone.</p>
+      \`;
+
+      new Chart(document.getElementById('matchChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Existing SevenRooms guests', 'New to Byron digitally'],
+          datasets: [{ data: [matched, newMembers], backgroundColor: ['#1A7A4A', '#C9963A'], borderWidth: 2, borderColor: '#FAF7F0' }]
+        },
+        options: {
+          responsive: true, cutout: '60%',
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } } }
+        }
+      });
+    }
+  });
 }
 
 document.getElementById('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
