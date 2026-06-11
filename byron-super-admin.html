@@ -692,7 +692,7 @@ async function renderMatchScore() {
           '<td>' + m.first_name + ' ' + (m.last_name || '') + '</td>' +
           '<td style="color:var(--mute)">' + (m.email || '') + '</td>' +
           '<td><code style="background:var(--border);padding:2px 8px;border-radius:2px">' + phoneMap[m.id] + '</code></td>' +
-          '<td><button class="btn btn-primary btn-sm" onclick="addPhoneToMember('' + m.id + '', '' + phoneMap[m.id] + '', this)">Add</button></td>' +
+          '<td><button class="btn btn-primary btn-sm" onclick="addPhoneToMember(\"' + m.id + '\", \"' + phoneMap[m.id] + '\", this)">Add</button></td>' +
           '</tr>';
       }).join('') +
       '</tbody></table></div>';
