@@ -662,46 +662,39 @@ async function processSevenRoomsCSV(event) {
 
   Papa.parse(file, {
     header: true, skipEmptyLines: true,
-    complete: async (results) => {
+    complete: async function(results) {
       const rows = results.data;
-      // Extract emails and phones from CSV (try common column names)
       const srEmails = new Set();
       const srPhones = new Set();
-      rows.forEach(row => {
+      rows.forEach(function(row) {
         const email = row.Email || row.email || row['Email Address'] || row['email_address'] || '';
         const phone = row.Phone || row.phone || row['Phone Number'] || row['phone_number'] || '';
         if (email.trim()) srEmails.add(email.trim().toLowerCase());
         if (phone.trim()) srPhones.add(phone.trim().replace(/\s/g, ''));
       });
 
-      // Get all Byron Club members
       const { data: members } = await db.from('members').select('email, phone');
-      const total = members?.length || 0;
+      const total = members ? members.length : 0;
       let matched = 0;
-      const matchedEmails = [];
 
-      (members || []).forEach(m => {
+      (members || []).forEach(function(m) {
         const emailMatch = m.email && srEmails.has(m.email.toLowerCase());
         const phoneMatch = m.phone && srPhones.has(m.phone.replace(/\s/g, ''));
-        if (emailMatch || phoneMatch) {
-          matched++;
-          if (m.email) matchedEmails.push(m.email);
-        }
+        if (emailMatch || phoneMatch) matched++;
       });
 
       const newMembers = total - matched;
       const matchPct = total > 0 ? Math.round((matched / total) * 100) : 0;
       const newPct = 100 - matchPct;
 
-      body.innerHTML = \`
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">
-          <div class="stat-card"><div class="stat-val">\${total}</div><div class="stat-label">Byron Club Members</div></div>
-          <div class="stat-card" style="border-color:var(--green)"><div class="stat-val" style="color:var(--green)">\${matched}</div><div class="stat-label">Existing SevenRooms Guests</div><div class="stat-sub">\${matchPct}% of members</div></div>
-          <div class="stat-card" style="border-color:var(--gold)"><div class="stat-val" style="color:var(--gold)">\${newMembers}</div><div class="stat-label">New to Byron digitally</div><div class="stat-sub">\${newPct}% of members</div></div>
-        </div>
-        <div style="max-width:280px;margin:0 auto"><canvas id="matchChart" height="280"></canvas></div>
-        <p style="color:var(--mute);font-size:12px;margin-top:16px;text-align:center">SevenRooms export had \${srEmails.size.toLocaleString()} email records. Matched by email and phone.</p>
-      \`;
+      body.innerHTML =
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">' +
+          '<div class="stat-card"><div class="stat-val">' + total + '</div><div class="stat-label">Byron Club Members</div></div>' +
+          '<div class="stat-card" style="border-color:var(--green)"><div class="stat-val" style="color:var(--green)">' + matched + '</div><div class="stat-label">Existing SevenRooms Guests</div><div class="stat-sub">' + matchPct + '% of members</div></div>' +
+          '<div class="stat-card" style="border-color:var(--gold)"><div class="stat-val" style="color:var(--gold)">' + newMembers + '</div><div class="stat-label">New to Byron digitally</div><div class="stat-sub">' + newPct + '% of members</div></div>' +
+        '</div>' +
+        '<div style="max-width:280px;margin:0 auto"><canvas id="matchChart" height="280"></canvas></div>' +
+        '<p style="color:var(--mute);font-size:12px;margin-top:16px;text-align:center">SevenRooms export had ' + srEmails.size.toLocaleString() + ' email records. Matched by email and phone.</p>';
 
       new Chart(document.getElementById('matchChart').getContext('2d'), {
         type: 'doughnut',
@@ -717,6 +710,7 @@ async function processSevenRoomsCSV(event) {
     }
   });
 }
+
 
 document.getElementById('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
 </script>
