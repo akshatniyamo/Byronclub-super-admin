@@ -357,11 +357,12 @@ async function handleLogin() {
   const err = document.getElementById('loginError');
   if (!email || !pin) { err.textContent = 'Enter email and PIN'; return; }
   btn.textContent = 'Signing in…'; btn.disabled = true; err.textContent = '';
-  const { data, error } = await db.from('super_admins').select('*').eq('email', email).eq('pin', pin).single();
+  const { data, error } = await db.from('super_admins').select('*').eq('email', email).eq('pin', pin).limit(1);
   btn.textContent = 'Sign In'; btn.disabled = false;
-  if (error || !data) { err.textContent = 'Incorrect email or PIN.'; return; }
-  currentAdmin = data;
-  sessionStorage.setItem('byronSuperAdmin', JSON.stringify(data));
+  if (error || !data || data.length === 0) { err.textContent = 'Incorrect email or PIN.'; return; }
+  const admin = data[0];
+  currentAdmin = admin;
+  sessionStorage.setItem('byronSuperAdmin', JSON.stringify(admin));
   showApp();
 }
 
@@ -692,7 +693,7 @@ async function renderMatchScore() {
           '<td>' + m.first_name + ' ' + (m.last_name || '') + '</td>' +
           '<td style="color:var(--mute)">' + (m.email || '') + '</td>' +
           '<td><code style="background:var(--border);padding:2px 8px;border-radius:2px">' + phoneMap[m.id] + '</code></td>' +
-          '<td><button class="btn btn-primary btn-sm" onclick="addPhoneToMember('' + m.id + '', '' + phoneMap[m.id] + '', this)">Add</button></td>' +
+          '<td><button class="btn btn-primary btn-sm" onclick="addPhoneToMember(\"' + m.id + '\", \"' + phoneMap[m.id] + '\", this)">Add</button></td>' +
           '</tr>';
       }).join('') +
       '</tbody></table></div>';
