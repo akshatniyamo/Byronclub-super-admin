@@ -358,8 +358,9 @@ async function handleLogin() {
   if (!email || !pin) { err.textContent = 'Enter email and PIN'; return; }
   btn.textContent = 'Signing in…'; btn.disabled = true; err.textContent = '';
   const { data, error } = await db.from('super_admins').select('*').eq('email', email).eq('pin', pin).single();
+  console.log('Login attempt:', email, pin, 'data:', data, 'error:', error);
   btn.textContent = 'Sign In'; btn.disabled = false;
-  if (error || !data) { err.textContent = 'Incorrect email or PIN.'; return; }
+  if (error || !data) { err.textContent = 'Error: ' + (error?.message || error?.code || 'No data returned'); return; }
   currentAdmin = data;
   sessionStorage.setItem('byronSuperAdmin', JSON.stringify(data));
   showApp();
