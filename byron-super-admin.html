@@ -243,7 +243,6 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
         <div><label>Offer</label>
           <select id="offerFilterType" style="width:200px">
             <option value="">All offers</option>
-            <option value="bogof">Buy One Get One £5</option>
             <option value="30off">30% Off Food</option>
           </select>
         </div>
@@ -621,85 +620,33 @@ async function renderMatchScore() {
   document.getElementById('matchLoading').style.display = 'block';
   document.getElementById('matchChartArea').style.display = 'none';
 
-  // Get all Byron Club members
-  const { data: members } = await db.from('members').select('id, email, phone');
-  const total = members ? members.length : 0;
+  // Single RPC call — pre-computed server-side, cached 1 hour
+  const { data, error } = await db.rpc('get_match_analytics');
 
-  // Get count of existing contacts table
-  const { count: srTotal } = await db.from('byron_existing_contacts').select('id', { count: 'exact', head: true });
-
-  // Match by email
-  let matched = 0;
-  const matchedIds = [];
-  const phoneMap = {}; // member id -> suggested phone from existing contacts
-
-  for (const member of (members || [])) {
-    let isMatch = false;
-
-    if (member.email) {
-      const { data: emailMatch } = await db.from('byron_existing_contacts')
-        .select('mobile_phone, phone')
-        .ilike('email', member.email)
-        .limit(1)
-        .single();
-      if (emailMatch) {
-        isMatch = true;
-        // If member has no phone but existing contact does, suggest it
-        if (!member.phone && (emailMatch.mobile_phone || emailMatch.phone)) {
-          phoneMap[member.id] = emailMatch.mobile_phone || emailMatch.phone;
-        }
-      }
-    }
-
-    if (!isMatch && member.phone) {
-      const { data: phoneMatch } = await db.from('byron_existing_contacts')
-        .select('mobile_phone')
-        .eq('mobile_phone', member.phone)
-        .limit(1)
-        .single();
-      if (phoneMatch) isMatch = true;
-    }
-
-    if (isMatch) matched++;
+  if (error || !data) {
+    document.getElementById('matchLoading').textContent = 'Error loading match score. Please refresh.';
+    return;
   }
 
-  const newMembers = total - matched;
-  const matchPct = total > 0 ? Math.round((matched / total) * 100) : 0;
-  const newPct = 100 - matchPct;
+  const { total_members: total, matched, match_pct, unmatched: newMembers,
+          existing_contacts_count, sevenrooms_contacts_count, computed_at } = data;
+  const newPct = (100 - match_pct).toFixed(1);
+  const computedTime = computed_at ? new Date(computed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
 
   document.getElementById('matchLoading').style.display = 'none';
   document.getElementById('matchChartArea').style.display = 'block';
 
   document.getElementById('matchStats').innerHTML =
     '<div class="stat-card"><div class="stat-val">' + total + '</div><div class="stat-label">Byron Club Members</div></div>' +
-    '<div class="stat-card" style="border-color:var(--green)"><div class="stat-val" style="color:var(--green)">' + matched + '</div><div class="stat-label">Existing Byron Guests</div><div class="stat-sub">' + matchPct + '% of members</div></div>' +
+    '<div class="stat-card" style="border-color:var(--green)"><div class="stat-val" style="color:var(--green)">' + matched + '</div><div class="stat-label">Existing Byron Guests</div><div class="stat-sub">' + match_pct + '% of members</div></div>' +
     '<div class="stat-card" style="border-color:var(--gold)"><div class="stat-val" style="color:var(--gold)">' + newMembers + '</div><div class="stat-label">Brand New to Byron</div><div class="stat-sub">' + newPct + '% of members</div></div>';
 
-  document.getElementById('matchNote').textContent = 'Byron existing database: ' + (srTotal || 0).toLocaleString() + ' contacts. Matched by email and phone.';
-
-  // Build phone suggestions table
-  const suggestionIds = Object.keys(phoneMap);
-  let suggestionsHtml = '';
-  if (suggestionIds.length > 0) {
-    const { data: suggestMembers } = await db.from('members')
-      .select('id, first_name, last_name, email')
-      .in('id', suggestionIds);
-
-    suggestionsHtml = '<div style="margin-top:24px"><div class="card-header" style="margin-bottom:12px"><span class="card-title">Phone Number Suggestions</span></div>' +
-      '<p style="font-size:13px;color:var(--mute);margin-bottom:12px">These Byron Club members matched existing contacts that have a phone number. Click Add to associate it.</p>' +
-      '<table><thead><tr><th>Member</th><th>Email</th><th>Suggested Phone</th><th></th></tr></thead><tbody>' +
-      (suggestMembers || []).map(function(m) {
-        return '<tr>' +
-          '<td>' + m.first_name + ' ' + (m.last_name || '') + '</td>' +
-          '<td style="color:var(--mute)">' + (m.email || '') + '</td>' +
-          '<td><code style="background:var(--border);padding:2px 8px;border-radius:2px">' + phoneMap[m.id] + '</code></td>' +
-          '<td><button class="btn btn-primary btn-sm" onclick="addPhoneToMember(\"' + m.id + '\", \"' + phoneMap[m.id] + '\", this)">Add</button></td>' +
-          '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
-  }
-
-  document.getElementById('matchChartArea').insertAdjacentHTML('beforeend', suggestionsHtml);
+  const totalRef = (existing_contacts_count || 0) + (sevenrooms_contacts_count || 0);
+  document.getElementById('matchNote').textContent =
+    'Matched against ' + totalRef.toLocaleString() + ' legacy contacts (' +
+    (existing_contacts_count || 0).toLocaleString() + ' Byron DB + ' +
+    (sevenrooms_contacts_count || 0).toLocaleString() + ' SevenRooms). ' +
+    (computedTime ? 'Last computed ' + computedTime + '.' : '');
 
   const existingMatchChart = document.getElementById('matchChart');
   if (existingMatchChart._chart) existingMatchChart._chart.destroy();
