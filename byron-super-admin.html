@@ -128,6 +128,19 @@ label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1
         <div class="stat-card"><div class="stat-val" id="stat-redemptions">—</div><div class="stat-label">Rewards Redeemed</div></div>
         <div class="stat-card"><div class="stat-val" id="stat-winvouchers">—</div><div class="stat-label">Win Vouchers</div></div>
       </div>
+
+      <!-- Founding 1500 Gift Voucher Stats -->
+      <div class="card" style="margin-bottom:24px; border-color: var(--ink);">
+        <div class="card-header"><span class="card-title">🎁 Founding 1500 — £20 Gift Vouchers</span></div>
+        <div class="card-body">
+          <div class="grid-4" style="gap:12px;">
+            <div class="stat-card"><div class="stat-val" id="gv-total">—</div><div class="stat-label">Total Issued</div></div>
+            <div class="stat-card" style="border-color:#C9963A"><div class="stat-val" id="gv-assigned" style="color:#C9963A">—</div><div class="stat-label">Assigned to Members</div></div>
+            <div class="stat-card" style="border-color:var(--green)"><div class="stat-val" id="gv-redeemed" style="color:var(--green)">—</div><div class="stat-label">Redeemed</div></div>
+            <div class="stat-card"><div class="stat-val" id="gv-remaining">—</div><div class="stat-label">Spots Remaining</div><div class="stat-sub">of 1,500</div></div>
+          </div>
+        </div>
+      </div>
       <div class="grid-2">
         <div class="card">
           <div class="card-header"><span class="card-title">Redemptions by Site</span></div>
@@ -393,11 +406,12 @@ function showPage(page) {
 
 // DASHBOARD
 async function loadDashboard() {
-  const [membersRes, stampsRes, redemptionsRes, winRes] = await Promise.all([
+  const [membersRes, stampsRes, redemptionsRes, winRes, gvRes] = await Promise.all([
     db.from('members').select('id', { count: 'exact', head: true }),
     db.from('visits').select('stamps_earned'),
     db.from('redemptions').select('id', { count: 'exact', head: true }),
     db.from('wc_rewards').select('id', { count: 'exact', head: true }).eq('reward_type', 'win_voucher'),
+    db.from('gift_vouchers').select('assigned_to_member_id, redeemed_at'),
   ]);
 
   document.getElementById('stat-members').textContent = membersRes.count ?? '—';
@@ -405,6 +419,15 @@ async function loadDashboard() {
   document.getElementById('stat-stamps').textContent = totalStamps;
   document.getElementById('stat-redemptions').textContent = redemptionsRes.count ?? '—';
   document.getElementById('stat-winvouchers').textContent = winRes.count ?? '—';
+
+  // Gift voucher stats
+  const gvAll = gvRes.data || [];
+  const gvAssigned = gvAll.filter(v => v.assigned_to_member_id).length;
+  const gvRedeemed = gvAll.filter(v => v.redeemed_at).length;
+  document.getElementById('gv-total').textContent = gvAll.length;
+  document.getElementById('gv-assigned').textContent = gvAssigned;
+  document.getElementById('gv-redeemed').textContent = gvRedeemed;
+  document.getElementById('gv-remaining').textContent = Math.max(0, 1500 - gvAssigned);
 
   // Site redemptions
   const { data: siteData } = await db.from('redemptions').select('redeemed_site');
